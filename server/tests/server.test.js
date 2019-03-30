@@ -115,3 +115,48 @@ describe('POST /todos', () => {
   });
   /**@endregion*/
 });
+
+describe('DELETE /todos/:id', () => {
+  /**@region_snippet_TestDelete*/
+  it('Should remove a todo', done => {
+    var hexId = todos[1]._id.toHexString();
+
+    request(app)
+    .delete(`/todos/${hexId}`)
+    .expect(200)
+    .expect(response => {
+      expect(response.body.todo._id).toBe(hexId);
+    })
+    .end((error, response) => {
+      if (error) {
+        return done(error);
+      }
+
+      Todo.findById(hexId).then(todo => {
+        expect(todo).toNotExist();
+        done();
+      }).catch(error => done(error));
+    });
+  });
+  /**@endregion*/
+
+  /**@snippet_region_TestNotFound*/
+  it('Should return 404 if todo not found', done => {
+    var hexId = new ObjectID().toHexString();
+
+    request(app)
+    .get(`/todos/${hexId}`)
+    .expect(404)
+    .end(done);
+  });
+  /**@endregion*/
+
+  /**@region_snippet_TestIvalidId*/
+  it('Should return 404 if object id is invalid', done => {
+    request(app)
+    .get('/todos/123abc')
+    .expect(404)
+    .end(done);
+  });
+  /**@endregion*/
+});
