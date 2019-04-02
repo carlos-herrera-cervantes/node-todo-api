@@ -8,15 +8,21 @@ const { ObjectID } = require('mongodb');
 var { mongoose } = require('./db/mongoose');
 var { Todo } = require('./models/todo');
 var { User } = require('./models/user');
+var { authenticate } = require('./middleware/authenticated');
 
 var app = express();
 const port = process.env.PORT;
 app.use(bodyParser.json());
 
 /**
+ * @TODOS_RESOURCE
+ * @route 'localhost/3000/todos'
+ */
+
+/**
 * @GET
 */
-/**@region_snippet_GetAll*/
+/** @region_snippet_GetAll */
 app.get('/todos', (request, response) => {
   Todo.find().then(todos => {
     response.send({ todos });
@@ -24,9 +30,9 @@ app.get('/todos', (request, response) => {
     response.status(400).send(error);
   });
 });
-/**@endregion*/
+/** @endregion */
 
-/**@region_snippet_GetById*/
+/** @region_snippet_GetById */
 app.get('/todos/:id', (request, response) => {
   var id = request.params.id;
 
@@ -44,12 +50,12 @@ app.get('/todos/:id', (request, response) => {
     response.status(400).send();
   });
 });
-/**@endregion*/
+/** @endregion */
 
 /**
 * @POST
 */
-/**@region_snippet_Create*/
+/** @region_snippet_Create */
 app.post('/todos', (request, response) => {
   var todo = new Todo({
     text: request.body.text
@@ -61,12 +67,12 @@ app.post('/todos', (request, response) => {
     response.status(400).send(error);
   });
 });
-/**@endregion*/
+/** @endregion */
 
 /**
 * @DELETE
 */
-/**@region_snippet_Delete*/
+/** @region_snippet_Delete */
 app.delete('/todos/:id', (request, response) => {
   var id = request.params.id;
 
@@ -84,12 +90,12 @@ app.delete('/todos/:id', (request, response) => {
     response.status(400).send();
   });
 });
-/**@endregion*/
+/** @endregion */
 
 /**
 * @PATCH
 */
-/**@region_snippet_Patch*/
+/** @region_snippet_Patch */
 app.patch('/todos/:id', (request, response) => {
   var id = request.params.id;
   var body = _.pick(request.body, ['text', 'completed']);
@@ -116,7 +122,39 @@ app.patch('/todos/:id', (request, response) => {
     response.status(400).send();
   });
 });
-/**@endregion*/
+/** @endregion */
+
+/**
+ * @USERS_RESOURCE
+ * @route 'localhost:3000/users'
+ */
+
+/**
+ * @GET
+*/
+/** @region_snippet_GetMe */
+app.get('/users/me', authenticate, (request, response) => {
+  response.send(request.user);
+});
+/** @endregion */
+
+ /**
+  * @POST
+  */
+/** @region_snippet_Create */
+app.post('/users', (request, response) => {
+  var body = _.pick(request.body, ['email', 'password']);
+  var user = new User(body);
+
+  user.save().then(() => {
+    return user.generateAuthToken();
+  }).then(token => {
+    response.header('x-auth', token).send(user);
+  }).catch(error => {
+    response.status(400).send(error);
+  });
+});
+/** @endregion */
 
 app.listen(port, () => {
   console.log(`Started on port ${port}`);
