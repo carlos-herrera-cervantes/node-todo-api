@@ -228,6 +228,7 @@ describe('GET /users/me', () => {
 });
 
 describe('POST /users', () => {
+  /** @region_snippet_TestCreateUser */
   it('Should create a user', done => {
     var email = 'libi@example.com';
     var password = 'secret';
@@ -252,7 +253,9 @@ describe('POST /users', () => {
       });
     });
   });
+  /** @endregion */
 
+  /** @region_snippet_TestInvalidRequest */
   it('Should return validation errors if request is invalid', done => {
     request(app)
     .post('/users')
@@ -263,7 +266,9 @@ describe('POST /users', () => {
     .expect(400)
     .end(done);
   });
+  /** @endregion */
 
+  /** @region_snippet_TestEmailInUse */
   it('Should not create user if email in use', done => {
     request(app)
     .post('/users')
@@ -274,4 +279,60 @@ describe('POST /users', () => {
     .expect(400)
     .end(done);
   });
+  /** @endregion */
+});
+
+describe('POST /users/login', () => {
+  /** @region_snippet_TestLogin */
+  it('Should login user and return auth token', done => {
+    request(app)
+    .post('/users/login')
+    .send({
+      email: users[1].email,
+      password: users[1].password
+    })
+    .expect(200)
+    .expect(response => {
+      expect(response.headers['x-auth']).toExist();
+    })
+    .end((error, response) => {
+      if (error) {
+        return done(error);
+      }
+
+      User.findById(users[1]._id).then(user => {
+        expect(user.tokens[0]).toInclude({
+          access: 'auth',
+          token: response.headers['x-auth']
+        });
+        done();
+      }).catch(error => done(error));
+    });
+  });
+  /** @endregion */
+
+  /** @region_snippet_TestInvalidLogin */
+  it('Should reject invalid login', done => {
+    request(app)
+    .post('/users/login')
+    .send({
+      email: users[1].email,
+      password: users[1].password + '1'
+    })
+    .expect(400)
+    .expect(response => {
+      expect(response.headers['x-auth']).toNotExist();
+    })
+    .end((error, response) => {
+      if (error) {
+        return done(error);
+      }
+
+      User.findById(users[1]._id).then(user => {
+        expect(user.tokens.length).toBe(0);
+        done();
+      }).catch(error => done(error));
+    });
+  });
+  /** @endregion */
 });
