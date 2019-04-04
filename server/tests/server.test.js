@@ -4,28 +4,17 @@ const { ObjectID } = require('mongodb');
 
 const { app } = require('./../server');
 const { Todo } = require('./../models/todo');
+const { User } = require('./../models/user');
+const { todos, populateTodos, users, populateUsers } = require('./seed/seed');
 
-const todos = [
-  {
-    _id: new ObjectID(),
-    text: 'First test todo'
-  },
-  {
-    _id: new ObjectID(),
-    text: 'Second test todo',
-    completed: true,
-    completedAt: 333
-  }
-];
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
-beforeEach(done => {
-  Todo.remove({}).then(() => {
-    return Todo.insertMany(todos);
-  }).then(() => done());
-});
-
+/**
+ * @TODOS_RESOURCE
+ */
 describe('GET /todos', () => {
-  /**@region_snippet_TestGetAll*/
+  /** @region_snippet_TestGetAll */
   it('Should get all todos', done => {
     request(app)
       .get('/todos')
@@ -35,11 +24,11 @@ describe('GET /todos', () => {
       })
       .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
 });
 
 describe('GET /todos/:id', () => {
-  /**@region_snippet_TestGetById*/
+  /** @region_snippet_TestGetById */
   it('Should return todo doc', done => {
     request(app)
     .get(`/todos/${todos[0]._id.toHexString()}`)
@@ -49,9 +38,9 @@ describe('GET /todos/:id', () => {
     })
     .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
 
-  /**@region_snippet_TestEmptyId*/
+  /** @region_snippet_TestEmptyId */
   it('Should return 404 if todo not found', done => {
     var hexId = new ObjectID().toHexString();
 
@@ -60,20 +49,20 @@ describe('GET /todos/:id', () => {
     .expect(404)
     .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
 
-  /**@region_snippet_TestInavlidId*/
+  /** @region_snippet_TestInavlidId */
   it('Should return 404 for invalid id', done => {
     request(app)
     .get('/todos/123abc')
     .expect(404)
     .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
 });
 
 describe('POST /todos', () => {
-  /**@region_snippet_TestPost*/
+  /** @region_snippet_TestPost */
   it('Should create a new todo', done => {
     var text = 'Test todo text';
 
@@ -96,9 +85,9 @@ describe('POST /todos', () => {
         .catch(error => done(error));
     });
   });
-  /**@endregion*/
+  /** @endregion */
 
-  /**@region_snippet_TestPostEmpty*/
+  /** @region_snippet_TestPostEmpty */
   it('Should not create todo with invalid body data', done => {
     request(app)
       .post('/todos')
@@ -115,11 +104,11 @@ describe('POST /todos', () => {
         .catch(error => done(error));
     });
   });
-  /**@endregion*/
+  /** @endregion */
 });
 
 describe('DELETE /todos/:id', () => {
-  /**@region_snippet_TestDelete*/
+  /** @region_snippet_TestDelete */
   it('Should remove a todo', done => {
     var hexId = todos[1]._id.toHexString();
 
@@ -140,9 +129,9 @@ describe('DELETE /todos/:id', () => {
       }).catch(error => done(error));
     });
   });
-  /**@endregion*/
+  /** @endregion */
 
-  /**@snippet_region_TestNotFound*/
+  /** @snippet_region_TestNotFound */
   it('Should return 404 if todo not found', done => {
     var hexId = new ObjectID().toHexString();
 
@@ -151,20 +140,20 @@ describe('DELETE /todos/:id', () => {
     .expect(404)
     .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
 
-  /**@region_snippet_TestIvalidId*/
+  /** @region_snippet_TestIvalidId */
   it('Should return 404 if object id is invalid', done => {
     request(app)
     .get('/todos/123abc')
     .expect(404)
     .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
 });
 
 describe('PATCH /todos/:id', () => {
-  /**@region_snippet_TestPatch*/
+  /** @region_snippet_TestPatch */
   it('Should update todo', done => {
     var hexId = todos[0]._id.toHexString();
     var text = 'This should be the new text';
@@ -183,9 +172,9 @@ describe('PATCH /todos/:id', () => {
     })
     .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
 
-  /**@snippet_region_TestClearCompletedAt*/
+  /** @snippet_region_TestClearCompletedAt */
   it('Should clear completedAt when todo is not completed', done => {
     var hexId = todos[1]._id.toHexString();
     var text = 'This should be the new text2';
@@ -204,5 +193,85 @@ describe('PATCH /todos/:id', () => {
     })
     .end(done);
   });
-  /**@endregion*/
+  /** @endregion */
+});
+
+/**
+* @USERS_RESOURCE
+*/
+describe('GET /users/me', () => {
+  /** @region_snippet_TestAuthenticated */
+  it('Should return user if authenticated', done => {
+    request(app)
+    .get('/users/me')
+    .set('x-auth', users[0].tokens[0].token)
+    .expect(200)
+    .expect(response => {
+      expect(response.body._id).toBe(users[0]._id.toHexString());
+      expect(response.body.email).toBe(users[0].email);
+    })
+    .end(done);
+  });
+  /** @endregion */
+
+  /** @region_snippet_TestUnhatorized */
+  it('Should return 401 if not authenticated', done => {
+    request(app)
+    .get('/users/me')
+    .expect(401)
+    .expect(response => {
+      expect(response.body).toEqual({});
+    })
+    .end(done);
+  });
+  /** @endregion */
+});
+
+describe('POST /users', () => {
+  it('Should create a user', done => {
+    var email = 'libi@example.com';
+    var password = 'secret';
+
+    request(app)
+    .post('/users')
+    .send({ email, password })
+    .expect(200)
+    .expect(response => {
+      expect(response.headers['x-auth']).toExist();
+      expect(response.body.email).toBe(email);
+    })
+    .end(error => {
+      if (error) {
+        return done(error);
+      }
+
+      User.findOne({ email }).then(user => {
+        expect(user).toExist();
+        expect(user.password).toNotBe(password);
+        done();
+      });
+    });
+  });
+
+  it('Should return validation errors if request is invalid', done => {
+    request(app)
+    .post('/users')
+    .send({
+      email: 'carlos',
+      password: '123'
+    })
+    .expect(400)
+    .end(done);
+  });
+
+  it('Should not create user if email in use', done => {
+    request(app)
+    .post('/users')
+    .send({
+      email: users[0].email,
+      password: 'secret'
+    })
+    .expect(400)
+    .end(done);
+  });
 });
