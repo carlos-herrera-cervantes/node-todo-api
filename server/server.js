@@ -170,6 +170,20 @@ app.post('/users/login', (request, response) => {
 });
 /** @endregion */
 
+/**
+ * @DELETE
+ */
+
+ /** @region_snippet_Delete */
+ app.delete('/users/me/token', authenticate, (request, response) => {
+   request.user.removeToken(request.token).then(() => {
+     response.status(200).send();
+   }, () => {
+     response.status(400).send();
+   });
+ });
+ /** @endregion */
+
 app.listen(port, () => {
   console.log(`Started on port ${port}`);
 });
